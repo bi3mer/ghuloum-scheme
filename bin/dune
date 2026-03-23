@@ -1,0 +1,4 @@
+(executable
+ (public_name ghuloum-scheme)
+ (name main)
+ (libraries ghuloum_scheme))
