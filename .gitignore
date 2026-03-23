@@ -34,3 +34,9 @@ setup.log
 
 # Local OPAM switch
 _opam/
+
+# assembly
+*.s
+
+# output executable from startup.c
+a.out

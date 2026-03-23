@@ -5,5 +5,6 @@ Simple implementation of Scheme based on Abdulaziz Ghuloum's [paper](http://sche
 ## Starting
 
 ```
-dune exec ghuloum-scheme
+❯ dune exec ghuloum-scheme 5 && gcc startup.c out.s && ./a.out
+5
 ```
