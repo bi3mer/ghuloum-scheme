@@ -36,7 +36,6 @@ let emit_type_predicate f mask tag =
 (* TODO
   [ ] null?
   [ ] zero?
-  [ ] not
 *)
 
 let rec emit_expr f x = match x with
@@ -71,6 +70,11 @@ let rec emit_expr f x = match x with
      | "integer?" ->
        emit_expr f (List.hd args);
        emit_type_predicate f fixnum_mask fixnum_tag
+
+     | "not" ->
+       emit_expr f (List.hd args);
+       Printf.fprintf f "\tcmpl $%d, %%eax\n" (immediate_rep (Bool false));
+       emit_zeroflag_to_bool f
 
      | _ -> failwith "unknown primcall")
 
