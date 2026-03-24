@@ -1,2 +1,3 @@
 (library
- (name ghuloum_scheme))
+ (name ghuloum_scheme)
+ (modules compiler))
