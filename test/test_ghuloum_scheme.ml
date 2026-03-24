@@ -98,6 +98,13 @@ let test_not () =
   Alcotest.(check string) "not (not #f) -> #f" "#f" (run (Primcall ("not", [Primcall ("not", [Bool false])])));
   Alcotest.(check string) "not (not #t) -> #t" "#t" (run (Primcall ("not", [Primcall ("not", [Bool true])])))
 
+let test_zero () =
+  Alcotest.(check string) "zero? 0 -> #t" "#t" (run (Primcall ("zero?", [Fixnum 0])));
+  Alcotest.(check string) "zero? 1 -> #f" "#f" (run (Primcall ("zero?", [Fixnum 1])));
+  Alcotest.(check string) "zero? -1 -> #f" "#f" (run (Primcall ("zero?", [Fixnum (-1)])));
+  Alcotest.(check string) "zero? (sub1 1) -> #t" "#t" (run (Primcall ("zero?", [Primcall ("sub1", [Fixnum 1])])));
+  Alcotest.(check string) "zero? (add1 -1) -> #t" "#t" (run (Primcall ("zero?", [Primcall ("add1", [Fixnum (-1)])])))
+
 let () =
   Alcotest.run "ghuloum" [
     "immediate_rep", [
@@ -114,5 +121,6 @@ let () =
       Alcotest.test_case "bool?" `Quick test_bool_predicate;
       Alcotest.test_case "integer?" `Quick test_integer_predicate;
       Alcotest.test_case "not" `Quick test_not;
+      Alcotest.test_case "zero?" `Quick test_zero;
     ]
   ]

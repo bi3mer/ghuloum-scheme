@@ -76,6 +76,11 @@ let rec emit_expr f x = match x with
        Printf.fprintf f "\tcmpl $%d, %%eax\n" (immediate_rep (Bool false));
        emit_zeroflag_to_bool f
 
+     | "zero?" ->
+       emit_expr f (List.hd args);
+       Printf.fprintf f "\tcmpl $0, %%eax\n";
+       emit_zeroflag_to_bool f
+
      | _ -> failwith "unknown primcall")
 
 let compile expr =
