@@ -64,6 +64,17 @@ let test_char_roundtrip () =
   Alcotest.(check int) "char->int->char 97" 97
     (run_int (Primcall ("char->integer", [Primcall ("integer->char", [Fixnum 97])])))
 
+(* *)
+let test_bool () =
+  Alcotest.(check int) "#t encodes correctly" (1 lsl bool_shift lor bool_tag) (immediate_rep (Bool true));
+  Alcotest.(check int) "#f encodes correctly" (0 lsl bool_shift lor bool_tag) (immediate_rep (Bool false))
+
+(* *)
+let test_char_predicate () =
+  Alcotest.(check string) "char? on char" "#t" (run (Primcall ("char?", [Char 'a'])));
+  Alcotest.(check string) "char? on fixnum" "#f" (run (Primcall ("char?", [Fixnum 1])));
+  Alcotest.(check string) "char? on bool" "#f" (run (Primcall ("char?", [Bool true])))
+
 let () =
   Alcotest.run "ghuloum" [
     "immediate_rep", [
@@ -75,5 +86,7 @@ let () =
       Alcotest.test_case "integer->char" `Quick test_integer_to_char;
       Alcotest.test_case "char->integer" `Quick test_char_to_integer;
       Alcotest.test_case "test_char_round_trip" `Quick test_char_roundtrip;
+      Alcotest.test_case "bool" `Quick test_bool;
+      Alcotest.test_case "char?" `Quick test_char_predicate;
     ]
   ]
