@@ -75,6 +75,20 @@ let test_char_predicate () =
   Alcotest.(check string) "char? on fixnum" "#f" (run (Primcall ("char?", [Fixnum 1])));
   Alcotest.(check string) "char? on bool" "#f" (run (Primcall ("char?", [Bool true])))
 
+(* *)
+let test_bool_predicate () =
+  Alcotest.(check string) "bool? on true" "#t" (run (Primcall ("bool?", [Bool true])));
+  Alcotest.(check string) "bool? on false" "#t" (run (Primcall ("bool?", [Bool false])));
+  Alcotest.(check string) "bool? on fixnum" "#f" (run (Primcall ("bool?", [Fixnum 1])));
+  Alcotest.(check string) "bool? on char" "#f" (run (Primcall ("bool?", [Char 'a'])))
+
+(* *)
+let test_integer_predicate () =
+  Alcotest.(check string) "integer? on fixnum" "#t" (run (Primcall ("integer?", [Fixnum 0])));
+  Alcotest.(check string) "integer? on negative" "#t" (run (Primcall ("integer?", [Fixnum (-1)])));
+  Alcotest.(check string) "integer? on char" "#f" (run (Primcall ("integer?", [Char 'a'])));
+  Alcotest.(check string) "integer? on bool" "#f" (run (Primcall ("integer?", [Bool true])))
+
 let () =
   Alcotest.run "ghuloum" [
     "immediate_rep", [
@@ -88,5 +102,7 @@ let () =
       Alcotest.test_case "test_char_round_trip" `Quick test_char_roundtrip;
       Alcotest.test_case "bool" `Quick test_bool;
       Alcotest.test_case "char?" `Quick test_char_predicate;
+      Alcotest.test_case "bool?" `Quick test_bool_predicate;
+      Alcotest.test_case "integer?" `Quick test_integer_predicate;
     ]
   ]

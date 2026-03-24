@@ -28,12 +28,15 @@ let emit_zeroflag_to_bool f =
   Printf.fprintf f "\tsall $%d, %%eax\n" bool_shift; (* shift 0/1 into bool payload position *)
   Printf.fprintf f "\torl $%d, %%eax\n" bool_tag     (* OR in bool tag bits *)
 
+let emit_type_predicate f mask tag =
+  Printf.fprintf f "\tandl $%d, %%eax\n" mask;  (* mask to isolate tag bits *)
+  Printf.fprintf f "\tcmpl $%d, %%eax\n" tag;   (* compare against expected tag, sets zero flag *)
+  emit_zeroflag_to_bool f
+
 (* TODO
   [ ] null?
   [ ] zero?
   [ ] not
-  [ ] integer?
-  [ ] bool?
 *)
 
 let rec emit_expr f x = match x with
@@ -57,11 +60,18 @@ let rec emit_expr f x = match x with
         emit_expr f (List.hd args);
         Printf.fprintf f "\tshrl $%d, %%eax\n" (char_shift - fixnum_shift);
 
+     | "bool?" ->
+       emit_expr f (List.hd args);
+       emit_type_predicate f bool_mask bool_tag
+
      | "char?" ->
        emit_expr f (List.hd args);
-       Printf.fprintf f "\tandl $%d, %%eax\n" char_mask;
-       Printf.fprintf f "\tcmpl $%d, %%eax\n" char_tag;
-       emit_zeroflag_to_bool f
+       emit_type_predicate f char_mask char_tag
+
+     | "integer?" ->
+       emit_expr f (List.hd args);
+       emit_type_predicate f fixnum_mask fixnum_tag
+
      | _ -> failwith "unknown primcall")
 
 let compile expr =
