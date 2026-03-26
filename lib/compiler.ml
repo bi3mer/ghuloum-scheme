@@ -6,20 +6,26 @@ let char_tag   = 0b00001111  (*  15 *)
 let char_shift = 0b00001000  (*   8 *)
 let char_mask  = 0b11111111  (* 255 *)
 
-let bool_tag   = 0b00101111   (*  47 *)
+let bool_tag   = 0b00011111   (*  31 *)
 let bool_shift = 0b00000111   (*   7 *)
 let bool_mask  = 0b01111111   (* 127 *)
+
+let null = 0b00101111
+
+let stack_mod = -4 (* Everything is represnted by 4 bytes *)
 
 type expr =
   | Bool of bool
   | Char of char
   | Fixnum of int
+  | Null
   | Primcall of string * expr list
 
 let immediate_rep = function
   | Bool b -> ((if b then 1 else 0) lsl bool_shift) lor bool_tag
   | Char c -> (Char.code c lsl char_shift) lor char_tag
   | Fixnum n -> n lsl fixnum_shift (* lor fixnum_tag *)
+  | Null -> null
   | _ -> failwith "Unhandled immedaite rep"
 
 let emit_zeroflag_to_bool f =
@@ -33,53 +39,51 @@ let emit_type_predicate f mask tag =
   Printf.fprintf f "\tcmpl $%d, %%eax\n" tag;   (* compare against expected tag, sets zero flag *)
   emit_zeroflag_to_bool f
 
-(* TODO
-  [ ] null?
-  [ ] zero?
-*)
-
-let rec emit_expr f x = match x with
-  | Fixnum _ | Char _ | Bool _  -> Printf.fprintf f "\tmovl $%d, %%eax\n" (immediate_rep x)
+let rec emit_expr f x si = match x with
+  | Fixnum _ | Char _ | Bool _ | Null -> Printf.fprintf f "\tmovl $%d, %%eax\n" (immediate_rep x)
   | Primcall (op, args) ->
     (match op with
      | "add1" ->
-       emit_expr f (List.hd args);
+       emit_expr f (List.hd args) si;
        Printf.fprintf f "\taddl $%d, %%eax\n" (immediate_rep (Fixnum 1))
 
      | "sub1" ->
-       emit_expr f (List.hd args);
+       emit_expr f (List.hd args) si;
        Printf.fprintf f "\tsubl $%d, %%eax\n" (immediate_rep (Fixnum 1))
 
      | "integer->char" ->
-        emit_expr f (List.hd args);
+        emit_expr f (List.hd args) si;
         Printf.fprintf f "\tshll $%d, %%eax\n" (char_shift - fixnum_shift);
         Printf.fprintf f "\torl $%d, %%eax\n" char_tag
 
      | "char->integer" ->
-        emit_expr f (List.hd args);
+        emit_expr f (List.hd args) si;
         Printf.fprintf f "\tshrl $%d, %%eax\n" (char_shift - fixnum_shift);
 
      | "bool?" ->
-       emit_expr f (List.hd args);
+       emit_expr f (List.hd args) si;
        emit_type_predicate f bool_mask bool_tag
 
      | "char?" ->
-       emit_expr f (List.hd args);
+       emit_expr f (List.hd args) si;
        emit_type_predicate f char_mask char_tag
 
      | "integer?" ->
-       emit_expr f (List.hd args);
+       emit_expr f (List.hd args) si;
        emit_type_predicate f fixnum_mask fixnum_tag
 
      | "not" ->
-       emit_expr f (List.hd args);
+       emit_expr f (List.hd args) si;
        Printf.fprintf f "\tcmpl $%d, %%eax\n" (immediate_rep (Bool false));
        emit_zeroflag_to_bool f
 
      | "zero?" ->
-       emit_expr f (List.hd args);
+       emit_expr f (List.hd args) si ;
        Printf.fprintf f "\tcmpl $0, %%eax\n";
        emit_zeroflag_to_bool f
+
+     (* | "null?" ->
+       emit_expr f  *)
 
      | _ -> failwith "unknown primcall")
 
@@ -88,6 +92,6 @@ let compile expr =
   Fun.protect ~finally: (fun() -> close_out f) (fun () ->
     output_string f ".global scheme_entry\n";
     output_string f "scheme_entry:\n";
-    emit_expr f expr;
+    emit_expr f expr stack_mod;
     output_string f "\tret\n"
   )

@@ -24,6 +24,10 @@ let test_char () =
   Alcotest.(check int) "char 0" ((Char.code '0' lsl char_shift) lor char_tag) (immediate_rep (Char '0'))
 
 (* *)
+let test_null_immediate () =
+  Alcotest.(check int) "null encodes correctly" null (immediate_rep Null)
+
+(* *)
 let test_unknown_primcall () =
   Alcotest.check_raises "unknown primcall fails"
     (Failure "unknown primcall")
@@ -105,11 +109,18 @@ let test_zero () =
   Alcotest.(check string) "zero? (sub1 1) -> #t" "#t" (run (Primcall ("zero?", [Primcall ("sub1", [Fixnum 1])])));
   Alcotest.(check string) "zero? (add1 -1) -> #t" "#t" (run (Primcall ("zero?", [Primcall ("add1", [Fixnum (-1)])])))
 
+(* let test_null () =
+  Alcotest.(check string) "null? on null" "#t" (run (Primcall ("null?", [Null])));
+  Alcotest.(check string) "null? on fixnum" "#f" (run (Primcall ("null?", [Fixnum 0])));
+  Alcotest.(check string) "null? on bool" "#f" (run (Primcall ("null?", [Bool false])));
+  Alcotest.(check string) "null? on char" "#f" (run (Primcall ("null?", [Char 'a']))) *)
+
 let () =
   Alcotest.run "ghuloum" [
     "immediate_rep", [
       Alcotest.test_case "fixnum" `Quick test_fixnum;
       Alcotest.test_case "fixchar" `Quick test_char;
+      Alcotest.test_case "null" `Quick test_null_immediate;
       Alcotest.test_case "nonsense primcall" `Quick test_unknown_primcall;
       Alcotest.test_case "add1" `Quick test_add1;
       Alcotest.test_case "sub1" `Quick test_sub1;
@@ -122,5 +133,6 @@ let () =
       Alcotest.test_case "integer?" `Quick test_integer_predicate;
       Alcotest.test_case "not" `Quick test_not;
       Alcotest.test_case "zero?" `Quick test_zero;
+      (* Alcotest.test_case "null?" `Quick test_null *)
     ]
   ]
