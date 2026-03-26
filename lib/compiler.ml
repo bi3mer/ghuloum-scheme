@@ -78,12 +78,14 @@ let rec emit_expr f x si = match x with
        emit_zeroflag_to_bool f
 
      | "zero?" ->
-       emit_expr f (List.hd args) si ;
+       emit_expr f (List.hd args) si;
        Printf.fprintf f "\tcmpl $0, %%eax\n";
        emit_zeroflag_to_bool f
 
-     (* | "null?" ->
-       emit_expr f  *)
+     | "null?" ->
+       emit_expr f (List.hd args) si;
+       Printf.fprintf f "\tcmpl $%d, %%eax\n" null;
+       emit_zeroflag_to_bool f
 
      | _ -> failwith "unknown primcall")
 

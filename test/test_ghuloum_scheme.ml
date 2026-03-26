@@ -109,11 +109,11 @@ let test_zero () =
   Alcotest.(check string) "zero? (sub1 1) -> #t" "#t" (run (Primcall ("zero?", [Primcall ("sub1", [Fixnum 1])])));
   Alcotest.(check string) "zero? (add1 -1) -> #t" "#t" (run (Primcall ("zero?", [Primcall ("add1", [Fixnum (-1)])])))
 
-(* let test_null () =
+let test_null () =
   Alcotest.(check string) "null? on null" "#t" (run (Primcall ("null?", [Null])));
   Alcotest.(check string) "null? on fixnum" "#f" (run (Primcall ("null?", [Fixnum 0])));
   Alcotest.(check string) "null? on bool" "#f" (run (Primcall ("null?", [Bool false])));
-  Alcotest.(check string) "null? on char" "#f" (run (Primcall ("null?", [Char 'a']))) *)
+  Alcotest.(check string) "null? on char" "#f" (run (Primcall ("null?", [Char 'a'])))
 
 let () =
   Alcotest.run "ghuloum" [
@@ -133,6 +133,6 @@ let () =
       Alcotest.test_case "integer?" `Quick test_integer_predicate;
       Alcotest.test_case "not" `Quick test_not;
       Alcotest.test_case "zero?" `Quick test_zero;
-      (* Alcotest.test_case "null?" `Quick test_null *)
+      Alcotest.test_case "null?" `Quick test_null
     ]
   ]
