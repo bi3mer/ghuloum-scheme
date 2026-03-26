@@ -34,6 +34,12 @@ let emit_zeroflag_to_bool f =
   Printf.fprintf f "\tsall $%d, %%eax\n" bool_shift; (* shift 0/1 into bool payload position *)
   Printf.fprintf f "\torl $%d, %%eax\n" bool_tag     (* OR in bool tag bits *)
 
+let emit_lessthan_flag_to_bool f =
+  Printf.fprintf f "\tmovl $0, %%eax\n";             (* clear eax so upper bits don't corrupt result *)
+  Printf.fprintf f "\tsetl %%al\n";                  (* set low byte to 1 if less than flag set, else 0 *)
+  Printf.fprintf f "\tsall $%d, %%eax\n" bool_shift; (* shift 0/1 into bool payload position *)
+  Printf.fprintf f "\torl $%d, %%eax\n" bool_tag     (* OR in bool tag bits *)
+
 let emit_type_predicate f mask tag =
   Printf.fprintf f "\tandl $%d, %%eax\n" mask;  (* mask to isolate tag bits *)
   Printf.fprintf f "\tcmpl $%d, %%eax\n" tag;   (* compare against expected tag, sets zero flag *)
@@ -85,6 +91,39 @@ let rec emit_expr f x si = match x with
      | "null?" ->
        emit_expr f (List.hd args) si;
        Printf.fprintf f "\tcmpl $%d, %%eax\n" null;
+       emit_zeroflag_to_bool f
+
+     | "+" ->
+       emit_expr f (List.hd args) si;
+       Printf.fprintf f "\tmovl %%eax, %d(%%esp)\n" si;
+       emit_expr f (List.nth args 1) (si + stack_mod);
+       Printf.fprintf f "\taddl %d(%%esp), %%eax\n" si
+
+     | "-" ->
+       emit_expr f (List.nth args 1) (si + stack_mod);
+       Printf.fprintf f "\tmovl %%eax, %d(%%esp)\n" si;
+       emit_expr f (List.hd args) si;
+       Printf.fprintf f "\tsubl %d(%%esp), %%eax\n" si
+
+     | "*" ->
+       emit_expr f (List.hd args) si;
+       Printf.fprintf f "\tmovl %%eax, %d(%%esp)\n" si;
+       emit_expr f (List.nth args 1) (si + stack_mod);
+       Printf.fprintf f "\timull %d(%%esp), %%eax\n" si;
+       Printf.fprintf f "\tsarl $%d, %%eax\n" fixnum_shift
+
+     | "<" ->
+        emit_expr f (List.nth args 1) (si + stack_mod);
+        Printf.fprintf f "\tmovl %%eax, %d(%%esp)\n" si;
+        emit_expr f (List.hd args) si;
+        Printf.fprintf f "\tcmpl %d(%%esp), %%eax\n" si;
+        emit_lessthan_flag_to_bool f
+
+     | "=" | "char=?" ->
+       emit_expr f (List.hd args) si;
+       Printf.fprintf f "\tmovl %%eax, %d(%%esp)\n" si;
+       emit_expr f (List.nth args 1) (si + stack_mod);
+       Printf.fprintf f "\tcmpl %d(%%esp), %%eax\n" si;
        emit_zeroflag_to_bool f
 
      | _ -> failwith "unknown primcall")

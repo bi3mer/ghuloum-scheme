@@ -2,7 +2,8 @@ open Ghuloum_scheme.Compiler
 
 let run expr =
   compile expr;
-  ignore (Sys.command "gcc ../../../startup.c out.s -o out");
+  let ret = Sys.command "gcc -m32 ../../../startup.c out.s -o out" in
+  if ret <> 0 then Alcotest.fail "gcc failed";
   let ic = Unix.open_process_in "./out" in
   let result = input_line ic in
   ignore (Unix.close_process_in ic);
@@ -102,6 +103,7 @@ let test_not () =
   Alcotest.(check string) "not (not #f) -> #f" "#f" (run (Primcall ("not", [Primcall ("not", [Bool false])])));
   Alcotest.(check string) "not (not #t) -> #t" "#t" (run (Primcall ("not", [Primcall ("not", [Bool true])])))
 
+(* *)
 let test_zero () =
   Alcotest.(check string) "zero? 0 -> #t" "#t" (run (Primcall ("zero?", [Fixnum 0])));
   Alcotest.(check string) "zero? 1 -> #f" "#f" (run (Primcall ("zero?", [Fixnum 1])));
@@ -109,11 +111,59 @@ let test_zero () =
   Alcotest.(check string) "zero? (sub1 1) -> #t" "#t" (run (Primcall ("zero?", [Primcall ("sub1", [Fixnum 1])])));
   Alcotest.(check string) "zero? (add1 -1) -> #t" "#t" (run (Primcall ("zero?", [Primcall ("add1", [Fixnum (-1)])])))
 
+(* *)
 let test_null () =
   Alcotest.(check string) "null? on null" "#t" (run (Primcall ("null?", [Null])));
   Alcotest.(check string) "null? on fixnum" "#f" (run (Primcall ("null?", [Fixnum 0])));
   Alcotest.(check string) "null? on bool" "#f" (run (Primcall ("null?", [Bool false])));
   Alcotest.(check string) "null? on char" "#f" (run (Primcall ("null?", [Char 'a'])))
+
+(* *)
+let test_add () =
+  Alcotest.(check int) "1 + 2 = 3" 3 (run_int (Primcall ("+", [Fixnum 1; Fixnum 2])));
+  Alcotest.(check int) "0 + 0 = 0" 0 (run_int (Primcall ("+", [Fixnum 0; Fixnum 0])));
+  Alcotest.(check int) "-1 + 1 = 0" 0 (run_int (Primcall ("+", [Fixnum (-1); Fixnum 1])));
+  Alcotest.(check int) "-1 + -1 = -2" (-2) (run_int (Primcall ("+", [Fixnum (-1); Fixnum (-1)])));
+  Alcotest.(check int) "nested add1" 4 (run_int (Primcall ("+", [Primcall ("add1", [Fixnum 1]); Fixnum 2])))
+
+(* *)
+let test_sub () =
+  Alcotest.(check int) "5 - 3 = 2" 2 (run_int (Primcall ("-", [Fixnum 5; Fixnum 3])));
+  Alcotest.(check int) "0 - 0 = 0" 0 (run_int (Primcall ("-", [Fixnum 0; Fixnum 0])));
+  Alcotest.(check int) "1 - 2 = -1" (-1) (run_int (Primcall ("-", [Fixnum 1; Fixnum 2])));
+  Alcotest.(check int) "-1 - -1 = 0" 0 (run_int (Primcall ("-", [Fixnum (-1); Fixnum (-1)])));
+  Alcotest.(check int) "nested sub1" 0 (run_int (Primcall ("-", [Primcall ("sub1", [Fixnum 1]); Fixnum 0])))
+
+(* *)
+let test_mul () =
+  Alcotest.(check int) "2 * 3 = 6" 6 (run_int (Primcall ("*", [Fixnum 2; Fixnum 3])));
+  Alcotest.(check int) "0 * 5 = 0" 0 (run_int (Primcall ("*", [Fixnum 0; Fixnum 5])));
+  Alcotest.(check int) "-1 * 3 = -3" (-3) (run_int (Primcall ("*", [Fixnum (-1); Fixnum 3])));
+  Alcotest.(check int) "-2 * -3 = 6" 6 (run_int (Primcall ("*", [Fixnum (-2); Fixnum (-3)])));
+  Alcotest.(check int) "nested add1" 6 (run_int (Primcall ("*", [Primcall ("add1", [Fixnum 2]); Fixnum 2])))
+
+(*  *)
+let test_eq () =
+  Alcotest.(check string) "1 = 1 -> #t" "#t" (run (Primcall ("=", [Fixnum 1; Fixnum 1])));
+  Alcotest.(check string) "1 = 2 -> #f" "#f" (run (Primcall ("=", [Fixnum 1; Fixnum 2])));
+  Alcotest.(check string) "0 = 0 -> #t" "#t" (run (Primcall ("=", [Fixnum 0; Fixnum 0])));
+  Alcotest.(check string) "-1 = -1 -> #t" "#t" (run (Primcall ("=", [Fixnum (-1); Fixnum (-1)])));
+  Alcotest.(check string) "nested = " "#t" (run (Primcall ("=", [Primcall ("add1", [Fixnum 1]); Fixnum 2])))
+
+(*  *)
+let test_lt () =
+  Alcotest.(check string) "1 < 2 -> #t" "#t" (run (Primcall ("<", [Fixnum 1; Fixnum 2])));
+  Alcotest.(check string) "2 < 1 -> #f" "#f" (run (Primcall ("<", [Fixnum 2; Fixnum 1])));
+  Alcotest.(check string) "1 < 1 -> #f" "#f" (run (Primcall ("<", [Fixnum 1; Fixnum 1])));
+  Alcotest.(check string) "-1 < 0 -> #t" "#t" (run (Primcall ("<", [Fixnum (-1); Fixnum 0])));
+  Alcotest.(check string) "nested <" "#t" (run (Primcall ("<", [Fixnum 1; Primcall ("add1", [Fixnum 1])])))
+
+(*  *)
+let test_char_eq () =
+  Alcotest.(check string) "a = a -> #t" "#t" (run (Primcall ("char=?", [Char 'a'; Char 'a'])));
+  Alcotest.(check string) "a = b -> #f" "#f" (run (Primcall ("char=?", [Char 'a'; Char 'b'])));
+  Alcotest.(check string) "A = A -> #t" "#t" (run (Primcall ("char=?", [Char 'A'; Char 'A'])));
+  Alcotest.(check string) "A = a -> #f" "#f" (run (Primcall ("char=?", [Char 'A'; Char 'a'])))
 
 let () =
   Alcotest.run "ghuloum" [
@@ -133,6 +183,12 @@ let () =
       Alcotest.test_case "integer?" `Quick test_integer_predicate;
       Alcotest.test_case "not" `Quick test_not;
       Alcotest.test_case "zero?" `Quick test_zero;
-      Alcotest.test_case "null?" `Quick test_null
+      Alcotest.test_case "null?" `Quick test_null;
+      Alcotest.test_case "+" `Quick test_add;
+      Alcotest.test_case "-" `Quick test_sub;
+      Alcotest.test_case "*" `Quick test_mul;
+      Alcotest.test_case "=" `Quick test_eq;
+      Alcotest.test_case "<" `Quick test_lt;
+      Alcotest.test_case "char=?" `Quick test_char_eq;
     ]
   ]

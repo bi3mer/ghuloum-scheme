@@ -5,7 +5,7 @@ Simple implementation of Scheme based on Abdulaziz Ghuloum's [paper](http://sche
 ## Running
 
 ```
-dune exec ghuloum-scheme && gcc startup.c out.s && ./a.out
+dune exec ghuloum-scheme && gcc startup.c out.s -m32 && ./a.out
 ```
 
 ## Testing
