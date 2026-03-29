@@ -165,6 +165,27 @@ let test_char_eq () =
   Alcotest.(check string) "A = A -> #t" "#t" (run (Primcall ("char=?", [Char 'A'; Char 'A'])));
   Alcotest.(check string) "A = a -> #f" "#f" (run (Primcall ("char=?", [Char 'A'; Char 'a'])))
 
+(*  *)
+let test_let () =
+  Alcotest.(check int) "let x = 5 in x" 5 (run_int (Let ([("x", Fixnum 5)], Var "x")));
+  Alcotest.(check int) "let x = 5 in x + 1" 6 (run_int (Let ([("x", Fixnum 5)], Primcall ("+", [Var "x"; Fixnum 1]))));
+  Alcotest.(check int) "let x = 5, y = 3 in x + y" 8 (run_int (Let ([("x", Fixnum 5); ("y", Fixnum 3)], Primcall ("+", [Var "x"; Var "y"]))));
+  Alcotest.(check int) "let x = 5, y = 3 in x - y" 2 (run_int (Let ([("x", Fixnum 5); ("y", Fixnum 3)], Primcall ("-", [Var "x"; Var "y"]))));
+  Alcotest.(check int) "let x = 5, y = 3 in x * y" 15 (run_int (Let ([("x", Fixnum 5); ("y", Fixnum 3)], Primcall ("*", [Var "x"; Var "y"]))));
+  Alcotest.(check string) "let x = 5, y = 5 in x = y" "#t" (run (Let ([("x", Fixnum 5); ("y", Fixnum 5)], Primcall ("=", [Var "x"; Var "y"]))));
+  Alcotest.(check string) "let x = 3, y = 5 in x < y" "#t" (run (Let ([("x", Fixnum 3); ("y", Fixnum 5)], Primcall ("<", [Var "x"; Var "y"]))));
+  Alcotest.(check string) "let x = 5, y = 3 in x < y" "#f" (run (Let ([("x", Fixnum 5); ("y", Fixnum 3)], Primcall ("<", [Var "x"; Var "y"]))));
+  Alcotest.(check string) "let x = true in bool?" "#t" (run (Let ([("x", Bool true)], Primcall ("bool?", [Var "x"]))));
+  Alcotest.(check string) "let x = false in not x" "#t" (run (Let ([("x", Bool false)], Primcall ("not", [Var "x"]))));
+  Alcotest.(check string) "let x = false in bool?" "#t" (run (Let ([("x", Bool false)], Primcall ("bool?", [Var "x"]))));
+  Alcotest.(check string) "let x = 0 in zero?" "#t" (run (Let ([("x", Fixnum 0)], Primcall ("zero?", [Var "x"]))));
+  Alcotest.(check char) "let x = a in char" 'a' (run_char (Let ([("x", Char 'a')], Var "x")));
+  Alcotest.(check string) "let x = a in char?" "#t" (run (Let ([("x", Char 'a')], Primcall ("char?", [Var "x"]))));
+  Alcotest.(check string) "let x = a, y = a in char=?" "#t" (run (Let ([("x", Char 'a'); ("y", Char 'a')], Primcall ("char=?", [Var "x"; Var "y"]))));
+  Alcotest.(check string) "let x = null in null?" "#t" (run (Let ([("x", Null)], Primcall ("null?", [Var "x"]))));
+  Alcotest.(check int) "nested let" 10 (run_int (Let ([("x", Fixnum 5)], Let ([("y", Fixnum 5)], Primcall ("+", [Var "x"; Var "y"])))));
+  Alcotest.(check int) "let binding is expr" 5 (run_int (Let ([("x", Primcall ("add1", [Fixnum 4]))], Var "x")))
+
 let () =
   Alcotest.run "ghuloum" [
     "immediate_rep", [
@@ -190,5 +211,6 @@ let () =
       Alcotest.test_case "=" `Quick test_eq;
       Alcotest.test_case "<" `Quick test_lt;
       Alcotest.test_case "char=?" `Quick test_char_eq;
+      Alcotest.test_case "let" `Quick test_let;
     ]
   ]

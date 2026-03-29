@@ -20,6 +20,8 @@ type expr =
   | Fixnum of int
   | Null
   | Primcall of string * expr list
+  | Var of string
+  | Let of (string * expr) list * expr
 
 let immediate_rep = function
   | Bool b -> ((if b then 1 else 0) lsl bool_shift) lor bool_tag
@@ -45,84 +47,96 @@ let emit_type_predicate f mask tag =
   Printf.fprintf f "\tcmpl $%d, %%eax\n" tag;   (* compare against expected tag, sets zero flag *)
   emit_zeroflag_to_bool f
 
-let rec emit_expr f x si = match x with
+let rec emit_expr f x si env = match x with
   | Fixnum _ | Char _ | Bool _ | Null -> Printf.fprintf f "\tmovl $%d, %%eax\n" (immediate_rep x)
+  | Var v ->
+    Printf.fprintf f "\tmovl %d(%%esp), %%eax\n" (List.assoc v env)
+
+  | Let (bindings, body) ->
+      let (new_si, new_env) = List.fold_left (fun (si, env) (name, expr) ->
+        emit_expr f expr si env;
+        Printf.fprintf f "\tmovl %%eax, %d(%%esp)\n" si;
+        (si + stack_mod, (name, si) :: env)
+      ) (si, env) bindings in
+      emit_expr f body new_si new_env
+
   | Primcall (op, args) ->
     (match op with
      | "add1" ->
-       emit_expr f (List.hd args) si;
+       emit_expr f (List.hd args) si env;
        Printf.fprintf f "\taddl $%d, %%eax\n" (immediate_rep (Fixnum 1))
 
      | "sub1" ->
-       emit_expr f (List.hd args) si;
+       emit_expr f (List.hd args) si env;
        Printf.fprintf f "\tsubl $%d, %%eax\n" (immediate_rep (Fixnum 1))
 
      | "integer->char" ->
-        emit_expr f (List.hd args) si;
+        emit_expr f (List.hd args) si env;
         Printf.fprintf f "\tshll $%d, %%eax\n" (char_shift - fixnum_shift);
         Printf.fprintf f "\torl $%d, %%eax\n" char_tag
 
      | "char->integer" ->
-        emit_expr f (List.hd args) si;
+        emit_expr f (List.hd args) si env;
         Printf.fprintf f "\tshrl $%d, %%eax\n" (char_shift - fixnum_shift);
 
      | "bool?" ->
-       emit_expr f (List.hd args) si;
+       emit_expr f (List.hd args) si env;
        emit_type_predicate f bool_mask bool_tag
 
      | "char?" ->
-       emit_expr f (List.hd args) si;
+       emit_expr f (List.hd args) si env;
        emit_type_predicate f char_mask char_tag
 
      | "integer?" ->
-       emit_expr f (List.hd args) si;
+       emit_expr f (List.hd args) si env;
        emit_type_predicate f fixnum_mask fixnum_tag
 
      | "not" ->
-       emit_expr f (List.hd args) si;
+       emit_expr f (List.hd args) si env;
        Printf.fprintf f "\tcmpl $%d, %%eax\n" (immediate_rep (Bool false));
        emit_zeroflag_to_bool f
 
      | "zero?" ->
-       emit_expr f (List.hd args) si;
+       emit_expr f (List.hd args) si env;
        Printf.fprintf f "\tcmpl $0, %%eax\n";
        emit_zeroflag_to_bool f
 
      | "null?" ->
-       emit_expr f (List.hd args) si;
+       emit_expr f (List.hd args) si env;
        Printf.fprintf f "\tcmpl $%d, %%eax\n" null;
        emit_zeroflag_to_bool f
 
      | "+" ->
-       emit_expr f (List.hd args) si;
+       emit_expr f (List.hd args) si env;
        Printf.fprintf f "\tmovl %%eax, %d(%%esp)\n" si;
-       emit_expr f (List.nth args 1) (si + stack_mod);
+       emit_expr f (List.nth args 1) (si + stack_mod) env;
        Printf.fprintf f "\taddl %d(%%esp), %%eax\n" si
 
      | "-" ->
-       emit_expr f (List.nth args 1) (si + stack_mod);
+       emit_expr f (List.nth args 1) (si + stack_mod) env;
        Printf.fprintf f "\tmovl %%eax, %d(%%esp)\n" si;
-       emit_expr f (List.hd args) si;
+       emit_expr f (List.hd args) si env;
        Printf.fprintf f "\tsubl %d(%%esp), %%eax\n" si
 
+
      | "*" ->
-       emit_expr f (List.hd args) si;
+       emit_expr f (List.hd args) si env;
        Printf.fprintf f "\tmovl %%eax, %d(%%esp)\n" si;
-       emit_expr f (List.nth args 1) (si + stack_mod);
+       emit_expr f (List.nth args 1) (si + stack_mod) env;
        Printf.fprintf f "\timull %d(%%esp), %%eax\n" si;
        Printf.fprintf f "\tsarl $%d, %%eax\n" fixnum_shift
 
      | "<" ->
-        emit_expr f (List.nth args 1) (si + stack_mod);
+        emit_expr f (List.nth args 1) (si + stack_mod) env;
         Printf.fprintf f "\tmovl %%eax, %d(%%esp)\n" si;
-        emit_expr f (List.hd args) si;
+        emit_expr f (List.hd args) si env;
         Printf.fprintf f "\tcmpl %d(%%esp), %%eax\n" si;
         emit_lessthan_flag_to_bool f
 
      | "=" | "char=?" ->
-       emit_expr f (List.hd args) si;
+       emit_expr f (List.hd args) si env;
        Printf.fprintf f "\tmovl %%eax, %d(%%esp)\n" si;
-       emit_expr f (List.nth args 1) (si + stack_mod);
+       emit_expr f (List.nth args 1) (si + stack_mod) env;
        Printf.fprintf f "\tcmpl %d(%%esp), %%eax\n" si;
        emit_zeroflag_to_bool f
 
@@ -133,6 +147,6 @@ let compile expr =
   Fun.protect ~finally: (fun() -> close_out f) (fun () ->
     output_string f ".global scheme_entry\n";
     output_string f "scheme_entry:\n";
-    emit_expr f expr stack_mod;
+    emit_expr f expr stack_mod [];
     output_string f "\tret\n"
   )
